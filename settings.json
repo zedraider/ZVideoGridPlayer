@@ -1,0 +1,16 @@
+{
+  "backend": "AUTO",
+  "max_videos": 64,
+  "max_fps": 60,
+  "min_video_size": 100,
+  "resize_quality": "Low (fast)",
+  "queue_size": 1,
+  "thread_timeout": 0.3,
+  "optimize_threshold": 16,
+  "skip_frames": true,
+  "theme": "dark",
+  "opacity": 1.0,
+  "auto_save": true,
+  "open_delay": 50,
+  "language": "ru"
+}

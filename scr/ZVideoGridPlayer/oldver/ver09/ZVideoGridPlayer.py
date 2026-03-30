@@ -1,0 +1,893 @@
+import os
+import tkinter as tk
+from tkinter import filedialog, messagebox
+from tkinter import ttk
+import cv2
+from PIL import Image, ImageTk
+import threading
+import time
+import numpy as np
+from pathlib import Path
+import ctypes
+
+# Попытка импортировать дополнительные библиотеки для Win11 стиля
+try:
+    import sv_ttk
+    HAS_SV_TTK = True
+except ImportError:
+    HAS_SV_TTK = False
+
+class CustomTitleBar:
+    """Кастомный заголовок окна в стиле Windows 11"""
+    def __init__(self, root, app, title="ZVideoGridPlayer"):
+        self.root = root
+        self.app = app
+        self.title_text = title
+        self.is_maximized = False
+        self.normal_size = None
+        
+        # Убираем стандартный заголовок
+        root.overrideredirect(True)
+        
+        # Создаем кастомный заголовок
+        self.title_bar = tk.Frame(root, bg='#1c1c1c', height=32)
+        self.title_bar.pack(fill=tk.X)
+        
+        # Иконка приложения
+        self.icon_label = tk.Label(self.title_bar, text="🎬", 
+                                   bg='#1c1c1c', fg='#0078d4',
+                                   font=('Segoe UI', 12))
+        self.icon_label.pack(side=tk.LEFT, padx=(12, 6), pady=6)
+        
+        # Заголовок окна
+        self.title_label = tk.Label(self.title_bar, text=title, 
+                                    bg='#1c1c1c', fg='#ffffff', 
+                                    font=('Segoe UI', 10))
+        self.title_label.pack(side=tk.LEFT, padx=0, pady=6)
+        
+        # Кнопки управления
+        button_bg = '#1c1c1c'
+        button_hover_bg = '#2c2c2c'
+        button_close_hover_bg = '#e81123'
+        
+        # Кнопка закрытия (справа)
+        self.close_btn = tk.Label(self.title_bar, text="✕", bg=button_bg, fg='#ffffff',
+                                  font=('Segoe UI', 10), width=3, cursor='hand2')
+        self.close_btn.pack(side=tk.RIGHT, padx=2, pady=4)
+        self.close_btn.bind('<Enter>', lambda e: self.close_btn.configure(bg=button_close_hover_bg))
+        self.close_btn.bind('<Leave>', lambda e: self.close_btn.configure(bg=button_bg))
+        self.close_btn.bind('<Button-1>', lambda e: root.destroy())
+        
+        # Кнопка разворачивания
+        self.max_btn = tk.Label(self.title_bar, text="□", bg=button_bg, fg='#ffffff',
+                                font=('Segoe UI', 10), width=3, cursor='hand2')
+        self.max_btn.pack(side=tk.RIGHT, padx=2, pady=4)
+        self.max_btn.bind('<Enter>', lambda e: self.max_btn.configure(bg=button_hover_bg))
+        self.max_btn.bind('<Leave>', lambda e: self.max_btn.configure(bg=button_bg))
+        self.max_btn.bind('<Button-1>', self.toggle_maximize)
+        
+        # Кнопка минимизации
+        self.min_btn = tk.Label(self.title_bar, text="─", bg=button_bg, fg='#ffffff',
+                                font=('Segoe UI', 12), width=3, cursor='hand2')
+        self.min_btn.pack(side=tk.RIGHT, padx=2, pady=4)
+        self.min_btn.bind('<Enter>', lambda e: self.min_btn.configure(bg=button_hover_bg))
+        self.min_btn.bind('<Leave>', lambda e: self.min_btn.configure(bg=button_bg))
+        self.min_btn.bind('<Button-1>', self.minimize_window)
+        
+        # Для перетаскивания окна
+        self.title_bar.bind('<Button-1>', self.start_move)
+        self.title_bar.bind('<B1-Motion>', self.on_move)
+        self.title_label.bind('<Button-1>', self.start_move)
+        self.title_label.bind('<B1-Motion>', self.on_move)
+        self.icon_label.bind('<Button-1>', self.start_move)
+        self.icon_label.bind('<B1-Motion>', self.on_move)
+        
+        self.x = 0
+        self.y = 0
+        
+        # Для изменения размера окна
+        self.setup_resize_handles()
+        
+        # Закругляем углы окна
+        self.round_corners()
+        
+        # Отслеживаем состояние окна
+        self.root.bind('<Map>', self.on_window_restore)
+        
+    def on_window_restore(self, event):
+        """При восстановлении окна"""
+        self.root.after(50, self.ensure_custom_titlebar)
+        
+    def ensure_custom_titlebar(self):
+        """Гарантируем, что кастомный заголовок виден"""
+        try:
+            if self.root.winfo_viewable():
+                self.root.overrideredirect(True)
+                self.root.lift()
+                self.root.update_idletasks()
+        except:
+            pass
+        
+    def setup_resize_handles(self):
+        """Добавление возможности изменения размера окна"""
+        resize_size = 6
+        
+        # Нижний правый угол
+        self.bottom_right = tk.Frame(self.root, bg='#1c1c1c', cursor='size_nw_se')
+        self.bottom_right.place(relx=1.0, rely=1.0, anchor='se', width=resize_size*2, height=resize_size*2)
+        self.bottom_right.bind('<B1-Motion>', self.resize_bottom_right)
+        
+        # Нижний левый угол
+        self.bottom_left = tk.Frame(self.root, bg='#1c1c1c', cursor='size_ne_sw')
+        self.bottom_left.place(relx=0.0, rely=1.0, anchor='sw', width=resize_size*2, height=resize_size*2)
+        self.bottom_left.bind('<B1-Motion>', self.resize_bottom_left)
+        
+        # Правый край
+        self.right_edge = tk.Frame(self.root, bg='#1c1c1c', cursor='size_we')
+        self.right_edge.place(relx=1.0, rely=0.5, anchor='e', width=resize_size, height=1)
+        self.right_edge.bind('<B1-Motion>', self.resize_right)
+        
+        # Нижний край
+        self.bottom_edge = tk.Frame(self.root, bg='#1c1c1c', cursor='size_ns')
+        self.bottom_edge.place(relx=0.5, rely=1.0, anchor='s', width=1, height=resize_size)
+        self.bottom_edge.bind('<B1-Motion>', self.resize_bottom)
+        
+    def resize_bottom_right(self, event):
+        x = max(800, self.root.winfo_pointerx() - self.root.winfo_rootx())
+        y = max(600, self.root.winfo_pointery() - self.root.winfo_rooty())
+        self.root.geometry(f"{x}x{y}")
+        self.app.update_grid_size()
+            
+    def resize_bottom_left(self, event):
+        x = self.root.winfo_pointerx()
+        y = self.root.winfo_pointery()
+        root_x = self.root.winfo_rootx()
+        root_y = self.root.winfo_rooty()
+        width = self.root.winfo_width() + (root_x - x)
+        height = max(600, y - root_y)
+        if width > 800:
+            self.root.geometry(f"{width}x{height}+{x}+{root_y}")
+            self.app.update_grid_size()
+            
+    def resize_right(self, event):
+        x = max(800, self.root.winfo_pointerx() - self.root.winfo_rootx())
+        self.root.geometry(f"{x}x{self.root.winfo_height()}")
+        self.app.update_grid_size()
+        
+    def resize_bottom(self, event):
+        y = max(600, self.root.winfo_pointery() - self.root.winfo_rooty())
+        self.root.geometry(f"{self.root.winfo_width()}x{y}")
+        self.app.update_grid_size()
+        
+    def minimize_window(self, event):
+        """Минимизация окна"""
+        self.app.stop_playback()
+        
+        try:
+            self.root.overrideredirect(False)
+            self.root.iconify()
+        except:
+            pass
+        
+    def start_move(self, event):
+        self.x = event.x
+        self.y = event.y
+        
+    def on_move(self, event):
+        if not self.is_maximized:
+            deltax = event.x - self.x
+            deltay = event.y - self.y
+            x = self.root.winfo_x() + deltax
+            y = self.root.winfo_y() + deltay
+            self.root.geometry(f"+{x}+{y}")
+        
+    def toggle_maximize(self, event):
+        if not self.is_maximized:
+            self.normal_size = (self.root.winfo_width(), self.root.winfo_height(),
+                              self.root.winfo_x(), self.root.winfo_y())
+            screen_width = self.root.winfo_screenwidth()
+            screen_height = self.root.winfo_screenheight()
+            self.root.geometry(f"{screen_width}x{screen_height}+0+0")
+            self.max_btn.configure(text="❐")
+            self.is_maximized = True
+        else:
+            if self.normal_size:
+                w, h, x, y = self.normal_size
+                self.root.geometry(f"{w}x{h}+{x}+{y}")
+                self.max_btn.configure(text="□")
+                self.is_maximized = False
+                self.app.update_grid_size()
+        
+        self.root.after(100, self.ensure_custom_titlebar)
+            
+    def round_corners(self):
+        """Закругление углов окна"""
+        try:
+            hwnd = ctypes.windll.user32.GetParent(self.root.winfo_id())
+            DWMWA_WINDOW_CORNER_PREFERENCE = 33
+            DWM_WINDOW_CORNER_PREFERENCE = 2
+            
+            ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                hwnd,
+                DWMWA_WINDOW_CORNER_PREFERENCE,
+                ctypes.byref(ctypes.c_int(DWM_WINDOW_CORNER_PREFERENCE)),
+                ctypes.sizeof(ctypes.c_int)
+            )
+        except:
+            pass
+
+class VideoGridPlayer:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("ZVideoGridPlayer")
+        self.root.geometry("1300x850")
+        
+        # Устанавливаем минимальный размер окна
+        self.root.minsize(800, 600)
+        
+        # Устанавливаем цвет фона
+        self.root.configure(bg='#1c1c1c')
+        
+        # Создаем кастомный заголовок
+        self.title_bar = CustomTitleBar(root, self, "ZVideoGridPlayer")
+        
+        # Поддерживаемые форматы видео
+        self.video_extensions = ('.mp4', '.avi', '.mov', '.mkv', '.flv', '.wmv', '.m4v')
+        
+        # Доступные бэкенды с понятными названиями
+        self.backend_options = {
+            'CAP_ANY': 'Авто (рекомендуется)',
+            'CAP_FFMPEG': 'FFMPEG (универсальный)',
+            'CAP_MSMF': 'Microsoft Media Foundation (Windows, быстрый)',
+            'CAP_DSHOW': 'DirectShow (классический)',
+            'CAP_INTEL_MFX': 'Intel Media SDK (аппаратное ускорение)',
+            'CAP_OPENCV_MJPEG': 'MJPEG (для IP-камер)'
+        }
+        
+        # Определяем доступные бэкенды
+        self.available_backends = self.get_available_backends()
+        
+        # Текущий выбранный бэкенд
+        self.current_backend = tk.StringVar(value='CAP_ANY')
+        
+        # Список видео и их элементов
+        self.videos = []
+        self.is_playing = False
+        self.play_thread = None
+        self.cols = 3
+        self.show_names = False
+        
+        # Создаем основной контент
+        self.create_main_content()
+        
+        # Настройка для Windows 11
+        self.setup_windows11_style()
+        
+        # Привязываем событие изменения размера окна
+        self.root.bind('<Configure>', self.on_window_resize)
+        
+        # Применяем тему Windows 11 если доступна
+        if HAS_SV_TTK:
+            sv_ttk.set_theme("dark")
+        
+        # Задержка для обновления размеров
+        self.after_id = None
+        
+    def get_available_backends(self):
+        """Определение доступных бэкендов"""
+        available = []
+        
+        # Проверяем каждый бэкенд
+        for backend_id in self.backend_options.keys():
+            try:
+                # Пробуем создать тестовое VideoCapture с этим бэкендом
+                test_cap = None
+                if backend_id == 'CAP_ANY':
+                    test_cap = cv2.VideoCapture(0)  # Пробуем открыть камеру
+                else:
+                    # Получаем числовой ID бэкенда
+                    backend_value = getattr(cv2, backend_id, None)
+                    if backend_value is not None:
+                        test_cap = cv2.VideoCapture(0, backend_value)
+                
+                if test_cap is not None:
+                    test_cap.release()
+                    available.append(backend_id)
+            except:
+                pass
+        
+        # Если ничего не найдено, добавляем хотя бы CAP_ANY
+        if not available:
+            available = ['CAP_ANY']
+        
+        # Добавляем понятные названия
+        self.backend_display_names = {}
+        for backend in available:
+            self.backend_display_names[backend] = self.backend_options.get(backend, backend)
+        
+        return available
+    
+    def create_main_content(self):
+        """Создание основного контента окна"""
+        main_frame = tk.Frame(self.root, bg='#1c1c1c')
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=12, pady=(0, 12))
+        
+        # Верхняя панель с кнопками
+        self.create_control_panel(main_frame)
+        
+        # Создание canvas с прокруткой
+        canvas_container = tk.Frame(main_frame, bg='#1c1c1c')
+        canvas_container.pack(fill=tk.BOTH, expand=True)
+        
+        self.canvas = tk.Canvas(canvas_container, 
+                               bg='#2b2b2b',
+                               highlightthickness=0)
+        
+        scrollbar = ttk.Scrollbar(canvas_container, orient=tk.VERTICAL, command=self.canvas.yview)
+        self.scrollable_frame = tk.Frame(self.canvas, bg='#2b2b2b')
+        
+        self.scrollable_frame.bind(
+            "<Configure>",
+            lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+        )
+        
+        self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+        self.canvas.configure(yscrollcommand=scrollbar.set)
+        
+        self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Привязка прокрутки
+        self.canvas.bind_all("<MouseWheel>", self._on_mousewheel)
+        
+    def create_control_panel(self, parent):
+        """Создание панели управления"""
+        control_frame = tk.Frame(parent, bg='#1c1c1c')
+        control_frame.pack(fill=tk.X, pady=(0, 12))
+        
+        btn_style = {
+            'bg': '#2c2c2c',
+            'fg': '#ffffff',
+            'font': ('Segoe UI', 10),
+            'padx': 15,
+            'pady': 8,
+            'relief': tk.FLAT,
+            'cursor': 'hand2',
+            'activebackground': '#3c3c3c',
+            'activeforeground': '#ffffff'
+        }
+        
+        # Первая строка кнопок
+        button_frame = tk.Frame(control_frame, bg='#1c1c1c')
+        button_frame.pack(fill=tk.X, pady=(0, 8))
+        
+        self.load_btn = tk.Button(button_frame, text="📁 Выбрать папку", 
+                                 command=self.load_folder, **btn_style)
+        self.load_btn.pack(side=tk.LEFT, padx=4)
+        
+        self.start_btn = tk.Button(button_frame, text="▶ Старт", 
+                                  command=self.start_playback, **btn_style)
+        self.start_btn.pack(side=tk.LEFT, padx=4)
+        
+        self.stop_btn = tk.Button(button_frame, text="⏹ Стоп", 
+                                 command=self.stop_playback, **btn_style)
+        self.stop_btn.pack(side=tk.LEFT, padx=4)
+        
+        # Информационная метка
+        self.info_label = tk.Label(button_frame, text="Нет загруженных видео", 
+                                  bg='#1c1c1c', fg='#8c8c8c',
+                                  font=('Segoe UI', 10))
+        self.info_label.pack(side=tk.LEFT, padx=20)
+        
+        # Вторая строка - настройки
+        settings_frame = tk.Frame(control_frame, bg='#1c1c1c')
+        settings_frame.pack(fill=tk.X)
+        
+        # FPS контрол
+        fps_frame = tk.Frame(settings_frame, bg='#1c1c1c')
+        fps_frame.pack(side=tk.LEFT, padx=8)
+        
+        tk.Label(fps_frame, text="🎬 FPS:", bg='#1c1c1c', fg='#ffffff',
+                font=('Segoe UI', 10)).pack(side=tk.LEFT, padx=4)
+        
+        self.fps_var = tk.IntVar(value=30)
+        self.fps_slider = ttk.Scale(fps_frame, from_=1, to=60, 
+                                   orient=tk.HORIZONTAL, 
+                                   variable=self.fps_var,
+                                   length=150)
+        self.fps_slider.pack(side=tk.LEFT, padx=8)
+        
+        self.fps_label = tk.Label(fps_frame, text="30", width=4,
+                                 bg='#1c1c1c', fg='#ffffff',
+                                 font=('Segoe UI', 10, 'bold'))
+        self.fps_label.pack(side=tk.LEFT)
+        self.fps_slider.configure(command=lambda x: self.fps_label.configure(text=str(int(float(x)))))
+        
+        # Колонки контрол
+        cols_frame = tk.Frame(settings_frame, bg='#1c1c1c')
+        cols_frame.pack(side=tk.LEFT, padx=20)
+        
+        tk.Label(cols_frame, text="📐 Колонок:", bg='#1c1c1c', fg='#ffffff',
+                font=('Segoe UI', 10)).pack(side=tk.LEFT, padx=4)
+        
+        self.cols_var = tk.IntVar(value=3)
+        self.cols_slider = ttk.Scale(cols_frame, from_=1, to=8, 
+                                    orient=tk.HORIZONTAL, 
+                                    variable=self.cols_var,
+                                    length=150)
+        self.cols_slider.pack(side=tk.LEFT, padx=8)
+        
+        self.cols_label = tk.Label(cols_frame, text="3", width=4,
+                                  bg='#1c1c1c', fg='#ffffff',
+                                  font=('Segoe UI', 10, 'bold'))
+        self.cols_label.pack(side=tk.LEFT)
+        self.cols_slider.configure(command=lambda x: self.cols_label.configure(text=str(int(float(x)))))
+        
+        apply_btn = tk.Button(cols_frame, text="Применить", 
+                            command=self.apply_grid_size, **btn_style)
+        apply_btn.pack(side=tk.LEFT, padx=8)
+        
+        # Выбор бэкенда (кодека) с понятными названиями
+        backend_frame = tk.Frame(settings_frame, bg='#1c1c1c')
+        backend_frame.pack(side=tk.LEFT, padx=20)
+        
+        tk.Label(backend_frame, text="🎞 Кодек:", bg='#1c1c1c', fg='#ffffff',
+                font=('Segoe UI', 10)).pack(side=tk.LEFT, padx=4)
+        
+        # Создаем список с понятными названиями
+        backend_values = [self.backend_display_names.get(b, b) for b in self.available_backends]
+        self.backend_combo = ttk.Combobox(backend_frame, 
+                                          values=backend_values,
+                                          state='readonly',
+                                          width=35)
+        self.backend_combo.pack(side=tk.LEFT, padx=4)
+        self.backend_combo.set(self.backend_display_names.get('CAP_ANY', 'Авто (рекомендуется)'))
+        self.backend_combo.bind('<<ComboboxSelected>>', self.on_backend_change)
+        
+        # Чекбокс для имен файлов
+        self.show_names_var = tk.BooleanVar(value=False)
+        self.show_names_check = tk.Checkbutton(settings_frame, 
+                                             text="📝 Имена файлов", 
+                                             variable=self.show_names_var,
+                                             command=self.toggle_names_display,
+                                             bg='#1c1c1c', fg='#ffffff',
+                                             selectcolor='#1c1c1c',
+                                             activebackground='#1c1c1c',
+                                             font=('Segoe UI', 10))
+        self.show_names_check.pack(side=tk.LEFT, padx=10)
+        
+        # Чекбокс для оптимизации
+        self.optimize_var = tk.BooleanVar(value=True)
+        self.optimize_check = tk.Checkbutton(settings_frame, 
+                                             text="⚡ Оптимизация", 
+                                             variable=self.optimize_var,
+                                             bg='#1c1c1c', fg='#ffffff',
+                                             selectcolor='#1c1c1c',
+                                             activebackground='#1c1c1c',
+                                             font=('Segoe UI', 10))
+        self.optimize_check.pack(side=tk.LEFT, padx=10)
+        
+    def on_backend_change(self, event):
+        """При смене бэкенда"""
+        selected_display = self.backend_combo.get()
+        # Находим соответствующий ID бэкенда
+        for backend_id, display_name in self.backend_display_names.items():
+            if display_name == selected_display:
+                self.current_backend.set(backend_id)
+                break
+        
+        # Если есть загруженные видео, предлагаем перезагрузить
+        if self.videos:
+            result = messagebox.askyesno("Смена кодека", 
+                                        "Для применения нового кодека нужно перезагрузить видео. Перезагрузить?")
+            if result:
+                self.reload_videos()
+    
+    def reload_videos(self):
+        """Перезагрузка видео с новым кодеком"""
+        if not self.videos:
+            return
+        
+        # Сохраняем пути и имена
+        video_paths = [(v['path'], v['name']) for v in self.videos]
+        
+        # Очищаем текущие видео
+        self.clear_videos()
+        
+        # Пересоздаем видео с новым кодеком
+        self.cols = self.cols_var.get()
+        canvas_width = self.canvas.winfo_width() - 20
+        if canvas_width < 100:
+            canvas_width = 1200
+        
+        video_width = max(150, (canvas_width - (self.cols * 6)) // self.cols)
+        video_height = int(video_width * 0.75)
+        
+        for i, (path, name) in enumerate(video_paths):
+            row = i // self.cols
+            col = i % self.cols
+            
+            frame = tk.Frame(self.scrollable_frame, bg='#2b2b2b', relief=tk.SUNKEN, bd=1)
+            frame.grid(row=row, column=col, padx=3, pady=3, sticky="nsew")
+            
+            self.scrollable_frame.grid_columnconfigure(col, weight=1)
+            self.scrollable_frame.grid_rowconfigure(row, weight=1)
+            
+            name_label = tk.Label(frame, text=name, 
+                                 bg='#2b2b2b', fg='#8c8c8c',
+                                 wraplength=video_width, font=('Segoe UI', 9))
+            
+            if self.show_names:
+                name_label.pack()
+            
+            video_canvas = tk.Canvas(frame, width=video_width, height=video_height, 
+                                     bg='black', highlightthickness=1,
+                                     highlightbackground='#404040')
+            video_canvas.pack(padx=2, pady=2, expand=True)
+            
+            self.videos.append({
+                'path': path,
+                'frame': frame,
+                'canvas': video_canvas,
+                'name_label': name_label,
+                'cap': None,
+                'fps': 0,
+                'name': name,
+                'width': video_width,
+                'height': video_height,
+                'valid': True
+            })
+        
+        self.info_label.config(text=f"📹 {len(self.videos)} | {self.cols} колонок | {self.backend_combo.get()}")
+        
+    def setup_windows11_style(self):
+        """Настройка стиля Windows 11"""
+        try:
+            self.root.tk.call('tk', 'scaling', 1.2)
+            try:
+                ctypes.windll.shcore.SetProcessDpiAwareness(1)
+            except:
+                pass
+        except:
+            pass
+    
+    def _on_mousewheel(self, event):
+        self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+    
+    def on_window_resize(self, event):
+        """Обработка изменения размера окна"""
+        if event.widget == self.root:
+            if self.after_id:
+                self.root.after_cancel(self.after_id)
+            self.after_id = self.root.after(100, self.update_grid_size)
+    
+    def update_grid_size(self):
+        """Обновление размеров видео при изменении окна"""
+        if self.videos:
+            self.rearrange_grid(keep_playing=True)
+    
+    def toggle_names_display(self):
+        """Переключение отображения имен файлов"""
+        self.show_names = self.show_names_var.get()
+        for video in self.videos:
+            if 'name_label' in video:
+                if self.show_names:
+                    video['name_label'].pack()
+                else:
+                    video['name_label'].pack_forget()
+    
+    def apply_grid_size(self):
+        """Применение нового размера сетки"""
+        if self.videos:
+            new_cols = self.cols_var.get()
+            if new_cols != self.cols:
+                self.cols = new_cols
+                self.rearrange_grid()
+    
+    def rearrange_grid(self, keep_playing=False):
+        """Перестроение сетки"""
+        if not self.videos:
+            return
+            
+        was_playing = self.is_playing if not keep_playing else self.is_playing
+        if was_playing:
+            self.stop_playback()
+        
+        current_videos = self.videos.copy()
+        
+        for video in current_videos:
+            if video['frame']:
+                video['frame'].destroy()
+        
+        self.videos = []
+        
+        cols = self.cols
+        canvas_width = self.canvas.winfo_width() - 20
+        if canvas_width < 100:
+            canvas_width = 1200
+        
+        video_width = max(150, (canvas_width - (cols * 6)) // cols)
+        video_height = int(video_width * 0.75)
+        
+        for i, video_data in enumerate(current_videos):
+            row = i // cols
+            col = i % cols
+            
+            frame = tk.Frame(self.scrollable_frame, bg='#2b2b2b', relief=tk.SUNKEN, bd=1)
+            frame.grid(row=row, column=col, padx=3, pady=3, sticky="nsew")
+            
+            self.scrollable_frame.grid_columnconfigure(col, weight=1)
+            self.scrollable_frame.grid_rowconfigure(row, weight=1)
+            
+            name_label = tk.Label(frame, text=video_data['name'], 
+                                 bg='#2b2b2b', fg='#8c8c8c',
+                                 wraplength=video_width, font=('Segoe UI', 9))
+            
+            if self.show_names:
+                name_label.pack()
+            
+            video_canvas = tk.Canvas(frame, width=video_width, height=video_height, 
+                                     bg='black', highlightthickness=1,
+                                     highlightbackground='#404040')
+            video_canvas.pack(padx=2, pady=2, expand=True)
+            
+            video_data['frame'] = frame
+            video_data['canvas'] = video_canvas
+            video_data['name_label'] = name_label
+            video_data['width'] = video_width
+            video_data['height'] = video_height
+            self.videos.append(video_data)
+        
+        self.info_label.config(text=f"📹 {len(self.videos)} | {self.cols} колонок | {self.backend_combo.get()}")
+        
+        if was_playing:
+            self.start_playback()
+    
+    def get_video_capture(self, path):
+        """Создание VideoCapture с выбранным бэкендом"""
+        backend_id = self.current_backend.get()
+        
+        try:
+            if backend_id == 'CAP_ANY':
+                return cv2.VideoCapture(path)
+            else:
+                backend_value = getattr(cv2, backend_id, None)
+                if backend_value is not None:
+                    cap = cv2.VideoCapture(path, backend_value)
+                    if cap.isOpened():
+                        return cap
+                    else:
+                        return cv2.VideoCapture(path)
+                else:
+                    return cv2.VideoCapture(path)
+        except:
+            return cv2.VideoCapture(path)
+    
+    def load_folder(self):
+        """Загрузка видео из папки"""
+        folder = filedialog.askdirectory()
+        if not folder:
+            return
+            
+        video_files = set()
+        
+        for ext in self.video_extensions:
+            video_files.update(Path(folder).glob(f"*{ext}"))
+            video_files.update(Path(folder).glob(f"*{ext.upper()}"))
+        
+        video_files = sorted(list(video_files))
+        
+        seen_names = set()
+        unique_videos = []
+        for video_path in video_files:
+            if video_path.name not in seen_names:
+                seen_names.add(video_path.name)
+                unique_videos.append(video_path)
+        
+        if not unique_videos:
+            messagebox.showwarning("Предупреждение", "Видео не найдены!")
+            return
+            
+        self.clear_videos()
+        
+        self.videos = []
+        self.cols = self.cols_var.get()
+        
+        canvas_width = self.canvas.winfo_width() - 20
+        if canvas_width < 100:
+            canvas_width = 1200
+        
+        video_width = max(150, (canvas_width - (self.cols * 6)) // self.cols)
+        video_height = int(video_width * 0.75)
+        
+        for i, video_path in enumerate(unique_videos):
+            row = i // self.cols
+            col = i % self.cols
+            
+            frame = tk.Frame(self.scrollable_frame, bg='#2b2b2b', relief=tk.SUNKEN, bd=1)
+            frame.grid(row=row, column=col, padx=3, pady=3, sticky="nsew")
+            
+            self.scrollable_frame.grid_columnconfigure(col, weight=1)
+            self.scrollable_frame.grid_rowconfigure(row, weight=1)
+            
+            name_label = tk.Label(frame, text=video_path.name, 
+                                 bg='#2b2b2b', fg='#8c8c8c',
+                                 wraplength=video_width, font=('Segoe UI', 9))
+            
+            if self.show_names:
+                name_label.pack()
+            
+            video_canvas = tk.Canvas(frame, width=video_width, height=video_height, 
+                                     bg='black', highlightthickness=1,
+                                     highlightbackground='#404040')
+            video_canvas.pack(padx=2, pady=2, expand=True)
+            
+            self.videos.append({
+                'path': str(video_path),
+                'frame': frame,
+                'canvas': video_canvas,
+                'name_label': name_label,
+                'cap': None,
+                'fps': 0,
+                'name': video_path.name,
+                'width': video_width,
+                'height': video_height,
+                'valid': True
+            })
+            
+        self.info_label.config(text=f"📹 {len(self.videos)} | {self.cols} колонок | {self.backend_combo.get()}")
+    
+    def clear_videos(self):
+        """Очистка видео"""
+        self.stop_playback()
+        for video in self.videos:
+            if video['cap']:
+                video['cap'].release()
+            if video['frame']:
+                video['frame'].destroy()
+        self.videos.clear()
+    
+    def start_playback(self):
+        """Запуск воспроизведения"""
+        if not self.videos:
+            messagebox.showwarning("Предупреждение", "Сначала загрузите видео!")
+            return
+            
+        if self.is_playing:
+            return
+            
+        valid_videos = []
+        for video in self.videos:
+            if video['cap']:
+                video['cap'].release()
+            try:
+                video['cap'] = self.get_video_capture(video['path'])
+                if not video['cap'].isOpened():
+                    print(f"Не удалось открыть: {video['name']}")
+                    video['valid'] = False
+                    continue
+                
+                video['fps'] = video['cap'].get(cv2.CAP_PROP_FPS)
+                if video['fps'] <= 0:
+                    video['fps'] = 30
+                video['valid'] = True
+                valid_videos.append(video)
+            except Exception as e:
+                print(f"Ошибка: {video['name']} - {e}")
+                video['valid'] = False
+                continue
+        
+        if not valid_videos:
+            messagebox.showerror("Ошибка", "Не удалось открыть видео!")
+            return
+            
+        self.is_playing = True
+        self.play_thread = threading.Thread(target=self._play_loop, daemon=True)
+        self.play_thread.start()
+    
+    def stop_playback(self):
+        """Остановка воспроизведения"""
+        self.is_playing = False
+        if self.play_thread:
+            self.play_thread.join(timeout=0.5)
+        for video in self.videos:
+            if video.get('cap'):
+                try:
+                    video['cap'].release()
+                except:
+                    pass
+                video['cap'] = None
+    
+    def _play_loop(self):
+        """Цикл воспроизведения с оптимизацией"""
+        target_fps = self.fps_var.get()
+        
+        # Оптимизация для большого количества видео
+        optimize = self.optimize_var.get()
+        if optimize and len(self.videos) > 16:
+            target_fps = min(target_fps, 20)
+        
+        frame_time = 1.0 / target_fps if target_fps > 0 else 0.033
+        frame_counter = 0
+        
+        while self.is_playing:
+            start_time = time.time()
+            
+            # Обновляем все видео
+            for idx, video in enumerate(self.videos):
+                if not video.get('valid', False) or not video.get('cap') or not video['cap'].isOpened():
+                    continue
+                    
+                try:
+                    ret, frame = video['cap'].read()
+                    if not ret:
+                        video['cap'].set(cv2.CAP_PROP_POS_FRAMES, 0)
+                        ret, frame = video['cap'].read()
+                        if not ret:
+                            continue
+                    
+                    # Оптимизация: пропускаем каждый второй кадр при большом количестве видео
+                    if optimize and len(self.videos) > 24 and frame_counter % 2 == 0:
+                        # Пропускаем этот кадр для экономии ресурсов
+                        continue
+                    
+                    frame = cv2.resize(frame, (video['width'], video['height']))
+                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    img = Image.fromarray(frame)
+                    imgtk = ImageTk.PhotoImage(image=img)
+                    
+                    self.root.after(0, self._update_canvas, idx, imgtk)
+                        
+                except Exception as e:
+                    continue
+            
+            frame_counter += 1
+            
+            # Контроль FPS
+            elapsed = time.time() - start_time
+            if elapsed < frame_time:
+                time.sleep(frame_time - elapsed)
+            
+            # Обновляем целевой FPS из интерфейса
+            interface_fps = self.fps_var.get()
+            if optimize and len(self.videos) > 16:
+                interface_fps = min(interface_fps, 20)
+            
+            frame_time = 1.0 / interface_fps if interface_fps > 0 else 0.033
+    
+    def _update_canvas(self, idx, imgtk):
+        """Обновление canvas"""
+        if idx < len(self.videos) and self.is_playing:
+            video = self.videos[idx]
+            if video.get('canvas') and imgtk:
+                try:
+                    video['canvas'].delete("all")
+                    video['canvas'].create_image(0, 0, anchor=tk.NW, image=imgtk)
+                    video['canvas'].image = imgtk
+                except:
+                    pass
+    
+    def on_closing(self):
+        """Закрытие окна"""
+        self.stop_playback()
+        self.root.destroy()
+
+
+def main():
+    root = tk.Tk()
+    app = VideoGridPlayer(root)
+    root.protocol("WM_DELETE_WINDOW", app.on_closing)
+    
+    # Центрируем окно
+    root.update_idletasks()
+    width = 1300
+    height = 850
+    x = (root.winfo_screenwidth() // 2) - (width // 2)
+    y = (root.winfo_screenheight() // 2) - (height // 2)
+    root.geometry(f'{width}x{height}+{x}+{y}')
+    
+    root.mainloop()
+
+
+if __name__ == "__main__":
+    main()
