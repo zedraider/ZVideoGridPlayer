@@ -1,0 +1,18 @@
+# Виртуальное окружение
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Настройки пользователя
+settings.json
+*.log
+
+# Секреты
+.env
+*.key
+*.pem
+
+# ОС
+.DS_Store
+Thumbs.db
