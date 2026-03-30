@@ -57,93 +57,119 @@ Perfect for surveillance, video comparison, and monitoring.
 - **Windows 10/11** (for rounded corners and DWM features)
 
 ### Step‑by‑Step
-
 ```bash
-# Clone the repository
-git clone https://github.com/zedraider/ZVideoGridPlayer.git
-cd ZVideoGridPlayer
+    # Clone the repository
+    git clone https://github.com/zedraider/ZVideoGridPlayer.git
+    cd ZVideoGridPlayer
 
-# Create and activate a virtual environment (recommended)
-python -m venv .venv
-.venv\Scripts\activate
+    # Create and activate a virtual environment (recommended)
+    python -m venv .venv
+    .venv\Scripts\activate
 
-# Install dependencies
-pip install -r requirements.txt
+    # Install dependencies
+    pip install -r requirements.txt
 
-# Run the application
-python scr/ZVideoGridPlayer/ZVideoGridPlayer.py
+    # Run the application
+    python scr/ZVideoGridPlayer/ZVideoGridPlayer.py
 ```
 
-### requirements.txt (minimum)
-text
-opencv-python>=4.8.0
-pillow>=10.0.0
-numpy>=1.24.0
-sv-ttk>=2.5.0   # optional: modern themed widgets
+### `requirements.txt` (minimum)
+```txt
+    opencv-python>=4.8.0
+    pillow>=10.0.0
+    numpy>=1.24.0
+    sv-ttk>=2.5.0   # optional: modern themed widgets
+```
+---
 
+## 🗂️ Project Structure
 
-### 🗂️ Project Structure
-ZVideoGridPlayer/
-├── scr/
-│   ├── ZVideoGridPlayer/
-│   │   ├── ZVideoGridPlayer.py   # main entry point
-│   │   └── oldver/               # archived versions
-│   └── lang/                     # language files
-│       ├── en.json
-│       ├── ru.json
-│       └── zh.json
-├── .venv/                        # virtual environment (optional)
-├── icon.ico                      # application icon
-├── icon.png
-├── requirements.txt
-├── settings.json                 # auto‑generated user settings
-└── README.md
+    ZVideoGridPlayer/
+    ├── scr/
+    │   ├── ZVideoGridPlayer/
+    │   │   ├── ZVideoGridPlayer.py   # main entry point
+    │   │   └── oldver/               # archived versions
+    │   └── lang/                     # language files
+    │       ├── en.json
+    │       ├── ru.json
+    │       └── zh.json
+    ├── .venv/                        # virtual environment (optional)
+    ├── icon.ico                      # application icon
+    ├── icon.png
+    ├── requirements.txt
+    ├── settings.json                 # auto‑generated user settings
+    └── README.md
 
-### 🌐 Adding a New Language
-Create a new file lang/{code}.json (e.g. lang/fr.json).
-Copy the structure from lang/en.json and translate the values.
-Add a "lang_{code}": "NativeName" entry for the display name in the settings.
-Restart the application – the new language will appear automatically.
-Example lang/fr.json:
-{
-    "app_title": "ZVideoGridPlayer",
-    "settings_title": "⚙️ PARAMÈTRES",
-    "language": "Langue de l'interface:",
-    "lang_fr": "Français",
-    "select_folder": "📁 Sélectionner un dossier",
-    "start": "▶ Démarrer"
-}
+---
 
-### 🛠️ Troubleshooting
-Issue	Solution
-FFMPEG assertion error (assertion fctx->async_lock failed)	Increase “Delay between video opens” in settings (default 50 ms).
-Videos not loading	Ensure file paths contain only ASCII characters; try a different backend (FFMPEG → MSMF → DirectShow).
-UI scaling issues	Disable DPI scaling for python.exe: right‑click → Properties → Compatibility → Change high DPI settings.
+## 🌐 Adding a New Language
 
-### 🧑‍💻 Development
-Code Style
-Follow PEP 8 guidelines.
-Use type hints where possible.
-Keep functions under 50 lines when feasible.
-Adding Features
-Fork the repository.
-Create a feature branch: git checkout -b feature/your-feature
-Commit changes: git commit -m 'Add: your feature'
-Push and open a Pull Request.
+1. Create a new file `lang/{code}.json` (e.g. `lang/fr.json`).
+2. Copy the structure from `lang/en.json` and translate the values.
+3. Add a `"lang_{code}": "NativeName"` entry for the display name in the settings.
+4. Restart the application – the new language will appear automatically.
 
-### 🤝 Contributing
+**Example `lang/fr.json`:**
+```json
+    {
+        "app_title": "ZVideoGridPlayer",
+        "settings_title": "⚙️ PARAMÈTRES",
+        "language": "Langue de l'interface:",
+        "lang_fr": "Français",
+        "select_folder": "📁 Sélectionner un dossier",
+        "start": "▶ Démarrer"
+    }
+```
+---
+
+## 🛠️ Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| **FFMPEG assertion error** (`assertion fctx->async_lock failed`) | Increase **“Delay between video opens”** in settings (default 50 ms). |
+| **Videos not loading** | Ensure file paths contain **only ASCII characters**; try a different backend (FFMPEG → MSMF → DirectShow). |
+| **UI scaling issues** | Disable DPI scaling for `python.exe`: right‑click → Properties → Compatibility → Change high DPI settings. |
+
+---
+
+## 🧑‍💻 Development
+
+### Code Style
+- Follow **PEP 8** guidelines.
+- Use type hints where possible.
+- Keep functions under 50 lines when feasible.
+
+### Adding Features
+1. Fork the repository.
+2. Create a feature branch: `git checkout -b feature/your-feature`
+3. Commit changes: `git commit -m 'Add: your feature'`
+4. Push and open a Pull Request.
+
+---
+
+## 🤝 Contributing
+
 Contributions are welcome! Feel free to submit a Pull Request.
-Fork the Project
-Create your Feature Branch (git checkout -b feature/AmazingFeature)
-Commit your Changes (git commit -m 'Add: AmazingFeature')
-Push to the Branch (git push origin feature/AmazingFeature)
-Open a Pull Request
 
-### 📄 License
-Distributed under the MIT License. See LICENSE for more information.
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'Add: AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-### 📬 Contact
-zedraider – GitHub Profile
-Project Link: https://github.com/zedraider/ZVideoGridPlayer
+---
+
+## 📄 License
+
+Distributed under the **MIT License**. See `LICENSE` for more information.
+
+---
+
+## 📬 Contact
+
+**zedraider** – [GitHub Profile](https://github.com/zedraider)  
+Project Link: [https://github.com/zedraider/ZVideoGridPlayer](https://github.com/zedraider/ZVideoGridPlayer)
+
+---
 
 _If you find this project useful, consider giving it a ⭐ on GitHub!_
