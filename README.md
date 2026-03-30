@@ -72,9 +72,9 @@ pip install -r requirements.txt
 
 # Run the application
 python scr/ZVideoGridPlayer/ZVideoGridPlayer.py
+```
 
-
-requirements.txt (minimum)
+### requirements.txt (minimum)
 text
 opencv-python>=4.8.0
 pillow>=10.0.0
@@ -82,7 +82,7 @@ numpy>=1.24.0
 sv-ttk>=2.5.0   # optional: modern themed widgets
 
 
-🗂️ Project Structure
+### 🗂️ Project Structure
 ZVideoGridPlayer/
 ├── scr/
 │   ├── ZVideoGridPlayer/
@@ -99,7 +99,7 @@ ZVideoGridPlayer/
 ├── settings.json                 # auto‑generated user settings
 └── README.md
 
-🌐 Adding a New Language
+### 🌐 Adding a New Language
 Create a new file lang/{code}.json (e.g. lang/fr.json).
 Copy the structure from lang/en.json and translate the values.
 Add a "lang_{code}": "NativeName" entry for the display name in the settings.
@@ -114,13 +114,13 @@ Example lang/fr.json:
     "start": "▶ Démarrer"
 }
 
-🛠️ Troubleshooting
+### 🛠️ Troubleshooting
 Issue	Solution
 FFMPEG assertion error (assertion fctx->async_lock failed)	Increase “Delay between video opens” in settings (default 50 ms).
 Videos not loading	Ensure file paths contain only ASCII characters; try a different backend (FFMPEG → MSMF → DirectShow).
 UI scaling issues	Disable DPI scaling for python.exe: right‑click → Properties → Compatibility → Change high DPI settings.
 
-🧑‍💻 Development
+### 🧑‍💻 Development
 Code Style
 Follow PEP 8 guidelines.
 Use type hints where possible.
@@ -131,7 +131,7 @@ Create a feature branch: git checkout -b feature/your-feature
 Commit changes: git commit -m 'Add: your feature'
 Push and open a Pull Request.
 
-🤝 Contributing
+### 🤝 Contributing
 Contributions are welcome! Feel free to submit a Pull Request.
 Fork the Project
 Create your Feature Branch (git checkout -b feature/AmazingFeature)
@@ -139,11 +139,11 @@ Commit your Changes (git commit -m 'Add: AmazingFeature')
 Push to the Branch (git push origin feature/AmazingFeature)
 Open a Pull Request
 
-📄 License
+### 📄 License
 Distributed under the MIT License. See LICENSE for more information.
 
-📬 Contact
+### 📬 Contact
 zedraider – GitHub Profile
 Project Link: https://github.com/zedraider/ZVideoGridPlayer
 
-If you find this project useful, consider giving it a ⭐ on GitHub!
+_If you find this project useful, consider giving it a ⭐ on GitHub!_
