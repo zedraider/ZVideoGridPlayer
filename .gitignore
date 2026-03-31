@@ -1,18 +1,45 @@
-# Виртуальное окружение
-.venv/
-venv/
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
-# Настройки пользователя
-settings.json
-*.log
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
 
-# Секреты
-.env
-*.key
-*.pem
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
 
-# ОС
+# OS
 .DS_Store
 Thumbs.db
+
+# Project specific
+settings.json
+*.log
+lang/*.json
+!lang/en.json
+!lang/ru.json

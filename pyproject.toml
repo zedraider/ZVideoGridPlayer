@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "zvideogridplayer"
+version = "1.2.0"
+description = "Modern multi-video grid player"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [{name = "Alexey Melnikov", email = "melaxand@gmail.com"}]
+dependencies = [
+numpy==2.4.3
+opencv-python==4.13.0.92
+pillow==12.1.1
+sv-ttk>=2.6.0
+av==17.0.0
+
+]
+
+[project.scripts]
+zvideogridplayer = "zvideogridplayer.main:main"
+
+[tool.setuptools.packages.find]
+include = ["zvideogridplayer*"]
