@@ -75,7 +75,7 @@ Watch multiple videos simultaneously in a dynamic masonry layout. Perfect for su
     pip install -r requirements.txt
 
     # Run the application
-    python scr/ZVideoGridPlayer/ZVideoGridPlayer.py
+    python -m zvideogridplayer.main
 
 #### `requirements.txt` (minimum)
 
@@ -89,7 +89,13 @@ Watch multiple videos simultaneously in a dynamic masonry layout. Perfect for su
     ZVideoGridPlayer/
     ├── scr/
     │   ├── ZVideoGridPlayer/
-    │   │   ├── ZVideoGridPlayer.py   # main entry point
+    │   ├── __init__.py          # версия 1.2.0 
+    │   ├── main.py
+    │   ├── config.py
+    │   ├── ui_components.py
+    │   ├── settings_manager.py
+    │   ├── video_player.py
+    │   └── language_manager.py
     │   │   └── oldver/               # archived versions
     │   └── lang/                     # language files
     │       ├── en.json
@@ -100,6 +106,10 @@ Watch multiple videos simultaneously in a dynamic masonry layout. Perfect for su
     ├── icon.png
     ├── requirements.txt
     ├── settings.json                 # auto-generated user settings
+    ├── .gitignore
+    ├── CHANGELOG.md
+    ├── pyproject.toml
+    ├── LICENSE
     └── README.md
 
 ### 🌐 Adding a New Language
