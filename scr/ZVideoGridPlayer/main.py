@@ -31,6 +31,83 @@ from .settings_manager import SettingsManager
 from .video_player import VideoPlayerThread
 from .ui_components import ModernTitleBar, ModernResizeHandle, ModernSettingsWindow, ThemeColors
 
+def get_app_base_path() -> str:
+    """Возвращает базовую папку приложения (где лежит .exe или .py)"""
+    if getattr(sys, 'frozen', False):
+        # Запущено как .exe
+        return os.path.dirname(sys.executable)
+    else:
+        # Запущено как скрипт
+        return os.path.dirname(os.path.abspath(__file__))
+
+def get_settings_path() -> str:
+    """Путь к settings.json (рядом с .exe или .py)"""
+    return os.path.join(get_app_base_path(), 'settings.json')
+
+def get_lang_path() -> str:
+    """Путь к папке lang (рядом с .exe или .py)"""
+    return os.path.join(get_app_base_path(), 'lang')
+
+def ensure_config_files():
+    """Создаёт папку lang и settings.json рядом с exe, если их нет"""
+    base_path = get_app_base_path()
+    settings_path = get_settings_path()
+    lang_path = get_lang_path()
+    
+    # Создаём папку lang
+    if not os.path.exists(lang_path):
+        os.makedirs(lang_path)
+        logger.info(f"Created lang folder at {lang_path}")
+        
+        # Копируем дефолтные языковые файлы из внутренних ресурсов
+        try:
+            import shutil
+            # Ищем исходные lang файлы
+            if getattr(sys, 'frozen', False):
+                # В .exe они лежат во временной папке
+                source_lang = os.path.join(sys._MEIPASS, 'scr', 'lang')
+            else:
+                # В режиме скрипта ищем рядом
+                source_lang = os.path.join(os.path.dirname(__file__), 'lang')
+                if not os.path.exists(source_lang):
+                    source_lang = os.path.join(os.path.dirname(__file__), '..', 'lang')
+            
+            if os.path.exists(source_lang):
+                for file in os.listdir(source_lang):
+                    if file.endswith('.json'):
+                        shutil.copy2(
+                            os.path.join(source_lang, file),
+                            os.path.join(lang_path, file)
+                        )
+                        logger.info(f"Copied {file} to lang folder")
+        except Exception as e:
+            logger.warning(f"Could not copy language files: {e}")
+    
+    # Создаём дефолтный settings.json если нет
+    if not os.path.exists(settings_path):
+        default_settings = {
+            "language": "ru",
+            "theme": "dark",
+            "opacity": 0.95,
+            "max_videos": 16,
+            "default_fps": 30,
+            "max_fps": 60,
+            "min_video_size": 200,
+            "auto_save": True,
+            "show_names": False,
+            "optimization_enabled": True,
+            "video_backend": "FFMPEG",
+            "backend_options": {
+                "FFMPEG": {"rtsp_transport": "tcp"},
+                "MSMF": {},
+                "DirectShow": {}
+            },
+            "video_delay_ms": 50
+        }
+        import json
+        with open(settings_path, 'w', encoding='utf-8') as f:
+            json.dump(default_settings, f, indent=4, ensure_ascii=False)
+        logger.info(f"Created default settings.json at {settings_path}")
 
 class VideoGridPlayer:
     """Main application class for multi-video grid player."""
@@ -39,8 +116,8 @@ class VideoGridPlayer:
         """Initialize the main application."""
         logger.info("=== Application Starting ===")
         self.root = root
-        self.lang = LanguageManager()
-        self.settings = SettingsManager()
+        self.lang = LanguageManager(lang_path=get_lang_path())
+        self.settings = SettingsManager(settings_path=get_settings_path())
         self.colors = ThemeColors.DARK
         
         self.lang.set_language(self.settings.get('language', 'en'))
@@ -900,12 +977,13 @@ class VideoGridPlayer:
         )
         self.update_timer = self.root.after(next_interval, self._update_canvas_all)
 
-
-
-
 def main() -> None:
     """Main entry point."""
     logger.info("=== MAIN START ===")
+
+    # Создаём конфигурационные файлы если нужно
+    ensure_config_files()
+    
     root: tk.Tk = tk.Tk()
     
     icon_paths: List[Path] = [

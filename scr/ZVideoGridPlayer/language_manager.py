@@ -4,8 +4,6 @@ import logging
 from pathlib import Path
 from typing import Dict, List, Tuple, Any
 
-from .config import PathConfig
-
 logger: logging.Logger = logging.getLogger(__name__)
 
 
@@ -62,19 +60,31 @@ class LanguageManager:
         "error_loading_lang": "Error loading language file",
     }
 
-    def __init__(self) -> None:
+    def __init__(self, lang_path: str = None) -> None:
         """Initialize language manager with available translations."""
+        self._lang_path = lang_path  # Сохраняем переданный путь
         self._current_language: str = 'en'
         self._translations: Dict[str, Dict[str, str]] = {}
         self._language_names: Dict[str, str] = {}
         self._load_languages()
 
     def _find_lang_folder(self) -> Path:
-        """Find the language folder in project root."""
+        """Find the language folder."""
+        if self._lang_path:
+            # Используем переданный путь
+            lang_dir = Path(self._lang_path)
+            if not lang_dir.exists():
+                try:
+                    lang_dir.mkdir(parents=True, exist_ok=True)
+                    logger.info(f"Created lang folder: {lang_dir}")
+                except OSError as e:
+                    logger.error(f"Could not create lang folder: {e}")
+            return lang_dir
+        
+        # Fallback: ищем в папке проекта
         script_path: Path = Path(__file__).resolve()
         project_root: Path = script_path.parent.parent.parent
-        
-        lang_dir: Path = project_root / PathConfig.LANG_FOLDER_NAME
+        lang_dir: Path = project_root / "lang"
         
         if not lang_dir.exists():
             try:
@@ -94,11 +104,11 @@ class LanguageManager:
             self._language_names = {'en': 'English'}
             return
         
-        json_files: List[Path] = list(lang_dir.glob(f"*{PathConfig.LANG_FILE_EXTENSION}"))
+        json_files: List[Path] = list(lang_dir.glob("*.json"))
         
         if not json_files:
             self._create_default_lang_files(lang_dir)
-            json_files = list(lang_dir.glob(f"*{PathConfig.LANG_FILE_EXTENSION}"))
+            json_files = list(lang_dir.glob("*.json"))
         
         for lang_file in json_files:
             lang_code: str = lang_file.stem
