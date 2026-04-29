@@ -43,3 +43,4 @@ settings.json
 lang/*.json
 !lang/en.json
 !lang/ru.json
+uv.lock
